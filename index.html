@@ -13,7 +13,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#1B2A4A;--bg-light:#243556;--bg-lighter:#2d4068;--accent:#D4A843;--accent-dim:rgba(212,168,67,0.15);--text:#E8E6E3;--text-dim:#9CA3AF;--text-muted:#6B7280;--success:#4ADE80;--danger:#F87171;--warning:#FBBF24;--radius:8px;--font:'Inter',system-ui,sans-serif}
-html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{height:100%;overflow:auto;font-family:var(--font);background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 body{display:flex;flex-direction:column}
 input,select,textarea,button{font-family:var(--font);font-size:14px}
 ::-webkit-scrollbar{width:6px;height:6px}
@@ -37,7 +37,7 @@ input,select,textarea,button{font-family:var(--font);font-size:14px}
 .guide-card button{background:var(--accent);color:var(--bg);border:none;padding:8px 20px;border-radius:var(--radius);font-weight:600;cursor:pointer;font-size:.85rem}
 .guide-card button.secondary{background:transparent;color:var(--text-dim);border:1px solid var(--bg-lighter)}
 .guide-card .close-btn{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer}
-#app{display:flex;flex-direction:column;height:100%;overflow:hidden}
+#app{display:flex;flex-direction:column;min-height:100%;overflow:auto}
 .toolbar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-light);border-bottom:1px solid var(--bg-lighter);flex-shrink:0;min-height:44px}
 .toolbar .logo{display:flex;align-items:center;gap:6px}
 .toolbar .logo svg{width:22px;height:22px;fill:var(--accent)}
@@ -55,7 +55,7 @@ input,select,textarea,button{font-family:var(--font);font-size:14px}
 .stats-bar{display:flex;gap:12px;padding:4px 12px;background:var(--bg);border-bottom:1px solid var(--bg-lighter);font-size:.7rem;color:var(--text-dim);flex-shrink:0}
 .stats-bar span{white-space:nowrap}
 .stats-bar .accent{color:var(--accent);font-weight:600}
-.table-wrap{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.table-wrap{flex:none;max-height:50vh;overflow:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-size:.75rem}
 thead{position:sticky;top:0;z-index:10}
 thead th{background:var(--bg-light);color:var(--accent);font-weight:600;padding:8px 10px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:2px solid var(--bg-lighter);font-size:.7rem;text-transform:uppercase;letter-spacing:.5px}
@@ -121,6 +121,40 @@ tbody td{padding:7px 10px;white-space:nowrap;max-width:200px;overflow:hidden;tex
 .shortlist-item .meta{font-size:.7rem;color:var(--text-dim)}
 .shortlist-item .remove-btn{background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem}
 .shortlist-empty{text-align:center;padding:2rem;color:var(--text-muted);font-size:.8rem}
+
+.dash-cards{display:flex;gap:8px;padding:6px 12px;overflow-x:auto;flex-shrink:0;border-bottom:1px solid var(--bg-lighter)}
+.dash-card{min-width:120px;background:var(--bg);border:1px solid var(--bg-lighter);border-radius:var(--radius);padding:8px 10px;flex-shrink:0}
+.dash-card .dc-label{font-size:.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.dash-card .dc-value{font-size:1rem;font-weight:700;color:var(--accent)}
+.dash-card .dc-sub{font-size:.6rem;color:var(--text-dim);margin-top:1px}
+.mls-section{background:var(--bg-light);border-top:2px solid var(--accent);margin:0}
+.mls-tabs{display:flex;border-bottom:1px solid var(--bg-lighter)}
+.mls-tabs button{flex:1;padding:10px;background:transparent;border:none;color:var(--text-dim);font-size:.75rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.mls-tabs button.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-dim)}
+.mls-content{padding:12px;max-height:400px;overflow-y:auto}
+.mls-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.mls-card{background:var(--bg);border:1px solid var(--bg-lighter);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:border-color .2s}
+.mls-card:hover{border-color:var(--accent)}
+.mls-card img{width:100%;height:140px;object-fit:cover;background:var(--bg-lighter)}
+.mls-card .mls-info{padding:8px 10px}
+.mls-card .mls-addr{font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mls-card .mls-price{font-size:.95rem;font-weight:700;color:var(--accent)}
+.mls-card .mls-meta{font-size:.65rem;color:var(--text-dim);margin-top:2px}
+.mls-sold-table{width:100%;border-collapse:collapse;font-size:.75rem}
+.mls-sold-table th{text-align:left;padding:6px 8px;color:var(--accent);font-size:.65rem;text-transform:uppercase;border-bottom:1px solid var(--bg-lighter)}
+.mls-sold-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.rent-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.rent-stat{background:var(--bg);border:1px solid var(--bg-lighter);border-radius:var(--radius);padding:10px;text-align:center}
+.rent-stat .rs-label{font-size:.65rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px}
+.rent-stat .rs-value{font-size:1.1rem;font-weight:700;color:var(--accent)}
+.rent-stat .rs-sub{font-size:.6rem;color:var(--text-dim);margin-top:2px}
+.modal-photo{width:100%;max-height:200px;object-fit:cover;border-bottom:1px solid var(--bg-lighter)}
+.mls-disclaimer{padding:8px 12px;font-size:.6rem;color:var(--text-muted);text-align:center;border-top:1px solid var(--bg-lighter);flex-shrink:0;line-height:1.4}
+.mls-badge{display:inline-block;padding:2px 6px;border-radius:3px;font-size:.6rem;font-weight:600;margin-left:4px}
+.mls-badge-sf{background:rgba(74,222,128,0.15);color:#4ADE80}
+.mls-badge-mf{background:rgba(168,85,247,0.15);color:#A855F7}
+.mls-badge-cc{background:rgba(96,165,250,0.15);color:#60A5FA}
+.mls-badge-ld{background:rgba(251,191,36,0.15);color:#FBBF24}
 .help-btn{position:fixed;bottom:12px;right:12px;width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--bg);border:none;font-size:1.1rem;font-weight:700;cursor:pointer;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 </style>
 </head>

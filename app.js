@@ -5,6 +5,13 @@ const ACCENT = "#D4A843";
 
 const PROPERTIES = window.__PROPERTIES__ || [];
 
+const MARKET = window.__MARKET__ || {};
+const MLS_ACTIVE = window.__MLS_ACTIVE__ || [];
+const MLS_SOLDS = window.__MLS_SOLDS__ || [];
+const MLS_RENTALS = window.__MLS_RENTALS__ || {};
+const STATS = window.__STATS__ || {};
+
+
 // Grade mapping
 function getGrade(score) {
   if (score >= 11) return "A";
@@ -30,11 +37,8 @@ function fmtNum(n) {
 }
 
 // Compute town medians
-const validSqftProps = PROPERTIES.filter(p => p.sqft > 0);
-const medianPSF = validSqftProps.length > 0
-  ? validSqftProps.map(p => p.pricePerSqft || (p.assessedValue / p.sqft)).sort((a,b) => a - b)[Math.floor(validSqftProps.length / 2)]
-  : 300;
-const avgRentPSF = 1.5; // ~$1.50/sqft/month typical estimate
+const medianPSF = MARKET.medianPSF || 400;
+const avgRentPSF = MARKET.rentPerSqft || 1.5;
 
 // ── Rotate Prompt ───────────────────────────
 function RotatePrompt({ onContinue }) {
@@ -159,10 +163,10 @@ function PropertyModal({ property: p, onClose }) {
         purchasePrice: pp, renoBudget: reno, holdingCost, purchaseComm, sellingCost, totalCost, arv, profit, cashInvested, roi
       });
     } else if (tab === "hold") {
-      const monthlyTax = (pp * 0.012) / 12;
-      const monthlyInsurance = (pp * 0.005) / 12;
-      const maintenance = rent * 0.1;
-      const vacancy = rent * 0.05;
+      const monthlyTax = (pp * (MARKET.taxRate || 0.012)) / 12;
+      const monthlyInsurance = (MARKET.insuranceAnnual || 2500) / 12;
+      const maintenance = pp * (MARKET.maintenancePct || 0.01) / 12;
+      const vacancy = rent * (MARKET.vacancyRate || 0.05);
       const monthlyCashFlow = rent - mortgagePayment - monthlyTax - monthlyInsurance - maintenance - vacancy;
       const annualRent = rent * 12;
       const annualExpenses = (monthlyTax + monthlyInsurance + maintenance + vacancy) * 12;
@@ -304,6 +308,13 @@ function PropertyModal({ property: p, onClose }) {
         ),
         React.createElement("button", { className: "close-modal", onClick: onClose }, "\u00D7")
       ),
+      // MLS Photo
+      p.mlsListNo && React.createElement("img", {
+        className: "modal-photo",
+        src: "https://media.mlspin.com/photo.aspx?mls=" + p.mlsListNo + "&n=0&w=900&h=500",
+        alt: p.address,
+        onError: (e) => { e.target.style.display = "none"; }
+      }),
       React.createElement("div", { className: "strategy-tabs" },
         tabs.map(t =>
           React.createElement("button", {
@@ -378,6 +389,140 @@ function ComparePanel({ properties, onClose }) {
     )
   );
 }
+
+
+// ── Dashboard Cards ──────────────────────────
+function DashboardCards() {
+  const cards = [
+    { label: "Properties", value: fmtNum(STATS.total || PROPERTIES.length), sub: TOWN + ", MA" },
+    { label: "Median Sale Price", value: fmt(MARKET.medianSalePrice), sub: "MLS sold data" },
+    { label: "Median $/sqft", value: "$" + (MARKET.medianPSF || "N/A"), sub: MARKET.totalSolds + " sales" },
+    { label: "Active Listings", value: fmtNum(MARKET.totalActive || 0), sub: Object.entries(MARKET.activeByType || {}).map(([k,v]) => v + " " + k).join(" · ") },
+    { label: "Mortgage Rate", value: ((MARKET.mortgageRate || 0.06) * 100).toFixed(1) + "%", sub: "30yr fixed" },
+    { label: "Median Rent", value: MARKET.medianRent ? fmt(MARKET.medianRent) : "N/A", sub: MLS_RENTALS.total ? MLS_RENTALS.total + " listings" : "limited data" },
+  ];
+  return React.createElement("div", { className: "dash-cards" },
+    cards.map((c, i) =>
+      React.createElement("div", { key: i, className: "dash-card" },
+        React.createElement("div", { className: "dc-label" }, c.label),
+        React.createElement("div", { className: "dc-value" }, c.value),
+        c.sub && React.createElement("div", { className: "dc-sub" }, c.sub)
+      )
+    )
+  );
+}
+
+// ── Market Data Section ─────────────────────
+function MarketDataSection() {
+  const [mlsTab, setMlsTab] = React.useState("active");
+
+  const typeBadge = (t) => {
+    const cls = t === "SF" ? "mls-badge-sf" : t === "MF" ? "mls-badge-mf" : t === "CC" ? "mls-badge-cc" : "mls-badge-ld";
+    return React.createElement("span", { className: "mls-badge " + cls }, t);
+  };
+
+  const renderActive = () => {
+    if (MLS_ACTIVE.length === 0) return React.createElement("p", { style: { color: "var(--text-dim)", textAlign: "center", padding: "2rem" } }, "No active listings available");
+    return React.createElement("div", { className: "mls-grid" },
+      MLS_ACTIVE.slice(0, 24).map((lst, i) =>
+        React.createElement("div", { key: i, className: "mls-card" },
+          lst.photo_count > 0
+            ? React.createElement("img", {
+                src: "https://media.mlspin.com/photo.aspx?mls=" + lst.list_no + "&n=0&w=600&h=450",
+                alt: lst.address,
+                loading: "lazy",
+                onError: (e) => { e.target.style.display = "none"; }
+              })
+            : React.createElement("div", { style: { height: 140, background: "var(--bg-lighter)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: ".7rem" } }, "No Photo"),
+          React.createElement("div", { className: "mls-info" },
+            React.createElement("div", { className: "mls-addr" }, lst.address, lst.unit ? " #" + lst.unit : "", " ", typeBadge(lst.type)),
+            React.createElement("div", { className: "mls-price" }, fmt(lst.price)),
+            React.createElement("div", { className: "mls-meta" },
+              [lst.beds ? lst.beds + "BR" : null, lst.sqft ? fmtNum(lst.sqft) + " sqft" : null, lst.sqft && lst.price ? "$" + Math.round(lst.price / lst.sqft) + "/sqft" : null].filter(Boolean).join(" · ") || "MLS #" + lst.list_no
+            )
+          )
+        )
+      )
+    );
+  };
+
+  const renderSolds = () => {
+    if (MLS_SOLDS.length === 0) return React.createElement("p", { style: { color: "var(--text-dim)", textAlign: "center", padding: "2rem" } }, "No recent sales data available");
+    return React.createElement("table", { className: "mls-sold-table" },
+      React.createElement("thead", null,
+        React.createElement("tr", null,
+          React.createElement("th", null, "Address"),
+          React.createElement("th", null, "Type"),
+          React.createElement("th", null, "Sale Price"),
+          React.createElement("th", null, "Date"),
+          React.createElement("th", null, "Sqft"),
+          React.createElement("th", null, "$/Sqft")
+        )
+      ),
+      React.createElement("tbody", null,
+        MLS_SOLDS.map((s, i) =>
+          React.createElement("tr", { key: i },
+            React.createElement("td", { style: { fontWeight: 500 } }, s.address),
+            React.createElement("td", null, typeBadge(s.type)),
+            React.createElement("td", { style: { color: "var(--accent)", fontWeight: 600 } }, fmt(s.sale_price)),
+            React.createElement("td", null, s.sale_date || "N/A"),
+            React.createElement("td", null, s.sqft ? fmtNum(s.sqft) : "N/A"),
+            React.createElement("td", null, s.psf ? "$" + s.psf : "N/A")
+          )
+        )
+      )
+    );
+  };
+
+  const renderRentals = () => {
+    const r = MLS_RENTALS;
+    if (!r || !r.medianRent) return React.createElement("p", { style: { color: "var(--text-dim)", textAlign: "center", padding: "2rem" } }, "Limited rental data for this market");
+    const beds = r.byBedrooms || {};
+    return React.createElement("div", null,
+      React.createElement("div", { className: "rent-stats" },
+        React.createElement("div", { className: "rent-stat" },
+          React.createElement("div", { className: "rs-label" }, "Total Listings"),
+          React.createElement("div", { className: "rs-value" }, r.total || 0),
+          React.createElement("div", { className: "rs-sub" }, "active rentals")
+        ),
+        React.createElement("div", { className: "rent-stat" },
+          React.createElement("div", { className: "rs-label" }, "Median Rent"),
+          React.createElement("div", { className: "rs-value" }, fmt(r.medianRent)),
+          React.createElement("div", { className: "rs-sub" }, "all sizes")
+        ),
+        React.createElement("div", { className: "rent-stat" },
+          React.createElement("div", { className: "rs-label" }, "Rent Range"),
+          React.createElement("div", { className: "rs-value" }, r.rentRange ? fmt(r.rentRange[0]) + " - " + fmt(r.rentRange[1]) : "N/A"),
+          React.createElement("div", { className: "rs-sub" }, "min to max")
+        ),
+        r.rentPerSqft && React.createElement("div", { className: "rent-stat" },
+          React.createElement("div", { className: "rs-label" }, "Rent/Sqft"),
+          React.createElement("div", { className: "rs-value" }, "$" + r.rentPerSqft),
+          React.createElement("div", { className: "rs-sub" }, "per month")
+        ),
+        ...Object.entries(beds).map(([b, rent]) =>
+          React.createElement("div", { key: b, className: "rent-stat" },
+            React.createElement("div", { className: "rs-label" }, b + " Bedroom"),
+            React.createElement("div", { className: "rs-value" }, fmt(rent)),
+            React.createElement("div", { className: "rs-sub" }, "median asking")
+          )
+        )
+      )
+    );
+  };
+
+  return React.createElement("div", { className: "mls-section" },
+    React.createElement("div", { className: "mls-tabs" },
+      React.createElement("button", { className: mlsTab === "active" ? "active" : "", onClick: () => setMlsTab("active") }, "Active Listings (" + MLS_ACTIVE.length + ")"),
+      React.createElement("button", { className: mlsTab === "solds" ? "active" : "", onClick: () => setMlsTab("solds") }, "Recent Sales (" + MLS_SOLDS.length + ")"),
+      React.createElement("button", { className: mlsTab === "rentals" ? "active" : "", onClick: () => setMlsTab("rentals") }, "Rental Snapshot")
+    ),
+    React.createElement("div", { className: "mls-content" },
+      mlsTab === "active" ? renderActive() : mlsTab === "solds" ? renderSolds() : renderRentals()
+    )
+  );
+}
+
 
 // ── Main App ────────────────────────────────
 function App() {
@@ -515,6 +660,9 @@ function App() {
       }, "Compare")
     ),
 
+    // Dashboard cards
+    React.createElement(DashboardCards),
+
     // Stats bar
     React.createElement("div", { className: "stats-bar" },
       React.createElement("span", null, "Showing: ", React.createElement("span", { className: "accent" }, filtered.length), " of ", PROPERTIES.length, " properties"),
@@ -587,6 +735,9 @@ function App() {
       )
     ),
 
+    // Market Data Section
+    React.createElement(MarketDataSection),
+
     // Property Modal
     selectedProp && React.createElement(PropertyModal, {
       property: selectedProp,
@@ -625,6 +776,12 @@ function App() {
             )
           )
       )
+    ),
+
+
+    // MLS Disclaimer
+    React.createElement("div", { className: "mls-disclaimer" },
+      "Listing data provided by MLS Property Information Network, Inc. Information deemed reliable but not guaranteed. Data refreshed " + (MARKET.dataDate || "N/A") + ". This tool is for informational purposes only and does not constitute financial advice. | Steinmetz Real Estate · William Raveis"
     ),
 
     // Help button
