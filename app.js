@@ -434,13 +434,47 @@ function typeBadge(t) {
   return h("span", {className:"mls-badge "+cls}, t);
 }
 
+// ── MLS to Property converters ──
+function mlsActiveToProperty(lst) {
+  var sqft = lst.sqft || 0;
+  var price = lst.price || 0;
+  var tm = {"SF":"SF","MF":"MultiSmall","CC":"Condo","LD":"LD"};
+  return {
+    id:"mls-"+lst.list_no, address:lst.address+(lst.unit?" #"+lst.unit:""), village:lst.area||TOWN,
+    zip:"", owner:"", homeType:tm[lst.type]||lst.type, assessedValue:price, sqft:sqft,
+    pricePerSqft:sqft>0?Math.round(price/sqft):0, tenure:0, leadScore:0, leadGrade:"C",
+    segment:"Active MLS Listing", strategy:"Flip", investmentScore:0,
+    estARV:Math.round(sqft>0?sqft*medianPSF*1.15:price*1.15),
+    estRenoBudget:Math.round(sqft*85), estProfit:0, estROI:0,
+    estMonthlyRent:Math.round(sqft*avgRentPSF), estAnnualRent:Math.round(sqft*avgRentPSF*12),
+    estGrossYield:0, estMonthlyCashflow:0, marketPSF:medianPSF, mlsListNo:lst.list_no
+  };
+}
+
+function mlsSoldToProperty(s) {
+  var sqft = s.sqft || 0;
+  var price = s.sale_price || 0;
+  var tm = {"SF":"SF","MF":"MultiSmall","CC":"Condo","LD":"LD"};
+  return {
+    id:"sold-"+s.list_no, address:s.address+(s.unit?" #"+s.unit:""), village:s.area||TOWN,
+    zip:"", owner:"", homeType:tm[s.type]||s.type, assessedValue:price, sqft:sqft,
+    pricePerSqft:s.psf||(sqft>0?Math.round(price/sqft):0), tenure:0, leadScore:0, leadGrade:"C",
+    segment:"Recent Sale"+(s.sale_date?" ("+s.sale_date+")":""), strategy:"Flip", investmentScore:0,
+    estARV:Math.round(sqft>0?sqft*medianPSF*1.15:price*1.15),
+    estRenoBudget:Math.round(sqft*85), estProfit:0, estROI:0,
+    estMonthlyRent:Math.round(sqft*avgRentPSF), estAnnualRent:Math.round(sqft*avgRentPSF*12),
+    estGrossYield:0, estMonthlyCashflow:0, marketPSF:medianPSF, mlsListNo:s.list_no
+  };
+}
+
 // ── Active Listings Section ──
-function ActiveSection() {
+function ActiveSection(props) {
+  var onSelect = props.onSelect;
   if (MLS_ACTIVE.length === 0) return h("div", {className:"section-empty"}, "Active MLS listings coming soon");
   return h("div", {className:"section-content"},
     h("div", {className:"mls-grid"},
       MLS_ACTIVE.slice(0,30).map(function(lst,i) {
-        return h("div", {key:i, className:"mls-card"},
+        return h("div", {key:i, className:"mls-card", onClick:function(){onSelect(mlsActiveToProperty(lst));}},
           lst.photo_count > 0
             ? h("img", {src:"https://media.mlspin.com/photo.aspx?mls="+lst.list_no+"&n=0&w=600&h=450", alt:lst.address, loading:"lazy", onError:function(e){e.target.style.display="none";}})
             : h("div", {className:"mls-nophoto"}, "No Photo"),
@@ -458,7 +492,8 @@ function ActiveSection() {
 }
 
 // ── Recent Sales Section ──
-function SalesSection() {
+function SalesSection(props) {
+  var onSelect = props.onSelect;
   if (MLS_SOLDS.length === 0) return h("div", {className:"section-empty"}, "Recent sales data coming soon");
   return h("div", {className:"section-content"},
     h("table", {className:"mls-sold-table"},
@@ -466,7 +501,7 @@ function SalesSection() {
         h("th", null, "Address"), h("th", null, "Type"), h("th", null, "Sale Price"), h("th", null, "Date"), h("th", {className:"col-wide"}, "Sqft"), h("th", {className:"col-wide"}, "$/Sqft")
       )),
       h("tbody", null, MLS_SOLDS.map(function(s,i) {
-        return h("tr", {key:i},
+        return h("tr", {key:i, style:{cursor:"pointer"}, onClick:function(){onSelect(mlsSoldToProperty(s));}},
           h("td", {style:{fontWeight:500}}, s.address),
           h("td", null, typeBadge(s.type)),
           h("td", {style:{color:"var(--accent)",fontWeight:600}}, fmt(s.sale_price)),
@@ -712,8 +747,8 @@ function App() {
   }
 
   function renderSection() {
-    if (section === "active") return h(ActiveSection);
-    if (section === "sales") return h(SalesSection);
+    if (section === "active") return h(ActiveSection, {onSelect:setSelectedProp});
+    if (section === "sales") return h(SalesSection, {onSelect:setSelectedProp});
     if (section === "rentals") return h(RentalsSection);
 
     // Properties section
